@@ -10,6 +10,7 @@ namespace ConsoleApp12
     public class SerialPortHundler
 
     {
+        private CancellationTokenSource _cts = new CancellationTokenSource();
         SerialPort serialPort;
         PlcProtocolHandler plcProtocolHandler;
         StringBuilder dataBuffer = new StringBuilder(1200);
@@ -28,40 +29,46 @@ namespace ConsoleApp12
             try
             {
                 // データを受信
-                int ret = RecievePlcResponse();
+                int ret = RecievePlcResponse(_cts.Token);
                 Console.WriteLine($"受信データ: {ret}");
                 // Thread.Sleep(1000); // 1秒待機
-                _= SendData();
+                SendData();
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"エラー: {ex.Message}");
             }
         }
-        public async Task SendData()
+        public void SendData()
         {
             string message = plcProtocolHandler.BuildReciveCommand();
             serialPort.WriteLine(message);
-            await Task.Delay(10); // 100ms待機
+ 
         }
         public void Close()
         {
+            _cts.Cancel();
             serialPort.Close();
         }
-        private int RecievePlcResponse()
+        private int RecievePlcResponse(CancellationToken token)
         {
 
-            while (true)
+            while (!token.IsCancellationRequested)
             {
                 if (serialPort.BytesToRead > 0)
                 {
-                    _ =  AppendRacieveData();
+                    AppendRacieveData();
 
                     // 改行を検知
-                    if (HasReceivedCompleteResponse(out int bitRead)) return bitRead;
+                    if (HasReceivedCompleteResponse(out int bitRead))
+                        return bitRead;
 
-                }
+                }// else
+                 //   await Task.Delay(10); // 100ms待機
+            
             }
+
+            return -1;
         }
         // HasReceivedCompleteResponseメソッドは、受信したデータが完全な応答であるかどうかを確認します。
         private bool HasReceivedCompleteResponse(out int bitRead)
@@ -71,6 +78,7 @@ namespace ConsoleApp12
                 string completeData = dataBuffer.ToString();
                 Console.WriteLine($"受信データ: {completeData}");
                 dataBuffer.Clear(); // バッファをクリア
+                
                 return plcProtocolHandler.ReadBit(completeData, out bitRead);
 
 
@@ -79,11 +87,11 @@ namespace ConsoleApp12
             return false;
         }
         // AppendRacieveDataメソッドは、受信したデータをバッファに追加します。
-        private async Task AppendRacieveData()
+        private void AppendRacieveData()
         {
             string received = serialPort.ReadExisting();
             dataBuffer.Append(received);
-            await Task.Delay(10); // 100ms待機
+          //  await Task.Delay(10); // 100ms待機
         }
   
 

@@ -31,17 +31,18 @@ namespace ConsoleApp12
                 int ret = RecievePlcResponse();
                 Console.WriteLine($"受信データ: {ret}");
                 // Thread.Sleep(1000); // 1秒待機
-                SendData();
+                _= SendData();
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"エラー: {ex.Message}");
             }
         }
-        public void SendData()
+        public async Task SendData()
         {
             string message = plcProtocolHandler.BuildReciveCommand();
             serialPort.WriteLine(message);
+            await Task.Delay(10); // 100ms待機
         }
         public void Close()
         {
@@ -54,7 +55,7 @@ namespace ConsoleApp12
             {
                 if (serialPort.BytesToRead > 0)
                 {
-                    AppendRacieveData();
+                    _ =  AppendRacieveData();
 
                     // 改行を検知
                     if (HasReceivedCompleteResponse(out int bitRead)) return bitRead;
@@ -78,12 +79,13 @@ namespace ConsoleApp12
             return false;
         }
         // AppendRacieveDataメソッドは、受信したデータをバッファに追加します。
-        private void AppendRacieveData()
+        private async Task AppendRacieveData()
         {
             string received = serialPort.ReadExisting();
             dataBuffer.Append(received);
+            await Task.Delay(10); // 100ms待機
         }
-        // PLCからの応答を受信した後、ビットを取得します。
+  
 
 
     }
